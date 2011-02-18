@@ -33,6 +33,18 @@ require(dirname(__FILE__) . "/../Curl/Multi.php");
 class Curl_Multi_Test extends PHPUnit_Framework_TestCase
 {
 	/**
+	 * test tracker
+	 * @var integer $_callbacks
+	 */
+	public $_callbacks = 0;
+
+	/**
+	 * test global state
+	 * @var Curl_Multi $_curl_multi
+	 */
+	public $_curl_multi = null;
+
+	/**
 	 * Test that adding and removing a curl handle works appropriately
 	 */
 	public function testAddRemoveHandle()
@@ -40,7 +52,7 @@ class Curl_Multi_Test extends PHPUnit_Framework_TestCase
 		$callback = create_function('$info,$data,$udata', '$udata->fail("Should not have called callback");');
 		$c = new Curl_Multi();
 
-		$ch = curl_init("http://www.example.com/");
+		$ch = curl_init("http://www.iana.org/");
 
 		$this->assertTrue($c->addHandle($ch, $callback, $this));
 
@@ -95,7 +107,7 @@ class Curl_Multi_Test extends PHPUnit_Framework_TestCase
 			// Okay
 		}
 
-		$ch = curl_init('http://www.example.com/');
+		$ch = curl_init('http://www.iana.org/');
 		try
 		{
 			$c->addHandle($ch, NULL, NULL);
@@ -138,7 +150,7 @@ class Curl_Multi_Test extends PHPUnit_Framework_TestCase
 	{
 		$this->_poll_data = NULL;
 
-		$url = 'http://www.example.com/';
+		$url = 'http://www.iana.org/';
 
 		$c = new Curl_Multi();
 
@@ -164,20 +176,15 @@ class Curl_Multi_Test extends PHPUnit_Framework_TestCase
 		}
 		while ($result === TRUE);
 		$this->assertFalse($c->select());
-		$this->assertContains("Example Web Page", $this->_poll_data);
+		$this->assertContains("IANA", $this->_poll_data);
 	}
 
-	/**
-	 * data for this test
-	 * @var integer $_callbacks
-	 */
-	public $_callbacks = 0;
 	/**
 	 * tests finish() func
 	 */
 	public function testFinish()
 	{
-		$url = 'http://www.example.com/';
+		$url = 'http://www.iana.org/';
 
 		$c = new Curl_Multi();
 
@@ -210,7 +217,7 @@ class Curl_Multi_Test extends PHPUnit_Framework_TestCase
 	{
 		$c = new Curl_Multi();
 
-		$h = curl_init('http://www.example.com/');
+		$h = curl_init('http://www.iana.org/');
 
 		$c->addHandle($h, create_function('',''), NULL);
 
@@ -220,5 +227,30 @@ class Curl_Multi_Test extends PHPUnit_Framework_TestCase
 
 		// should fail, since handle is closed.
 		$this->assertNull(curl_exec($h));
+	}
+
+	public function _curl_callback_test_add_curl_handle($info, $data, $udata)
+	{
+		$udata->_callbacks++;
+		if ($udata->_callbacks == 1) {
+			$udata->_curl_multi->addHandle(curl_init('http://www.iana.org/'), array($udata, '_curl_callback_test_add_curl_handle'), $udata);
+		}
+	}
+
+	/**
+	 * tests that you can add a curl handle during a callback
+	 */
+	public function testAddCurlHandleInCallback()
+	{
+		$this->_callbacks = 0;
+		$this->_curl_multi = new Curl_Multi();
+
+		$this->_curl_multi->addHandle(curl_init('http://www.iana.org/'), array($this, '_curl_callback_test_add_curl_handle'), $this);
+
+		// finish always returns true.
+		$this->assertTrue($this->_curl_multi->finish());
+
+		// make sure we got two requests back.
+		$this->assertEquals(2, $this->_callbacks, "Can add another request inside an existing request callback");
 	}
 }
