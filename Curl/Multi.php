@@ -101,7 +101,7 @@ class Curl_Multi
 	 * @return boolean TRUE on success
 	 * @throws Exception on invalid curl handle or callback function
 	 */
-	public function addHandle($curl_handle, $callback_function, $callback_data)
+	public function addHandle($curl_handle, $callback_function, $callback_data, $wait_for_connect = false)
 	{
 		if (get_resource_type($curl_handle) !== 'curl' || !is_callable($callback_function))
 		{
@@ -117,6 +117,11 @@ class Curl_Multi
 		);
 
 		curl_multi_add_handle($this->_handle, $curl_handle);
+
+		if ($wait_for_connect) {
+			// block long enough to connect and send the request.
+			$this->select();
+		}
 
 		return TRUE;
 	}
