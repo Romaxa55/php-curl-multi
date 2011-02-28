@@ -119,8 +119,9 @@ class Curl_Multi
 		curl_multi_add_handle($this->_handle, $curl_handle);
 
 		if ($wait_for_connect) {
-			// block long enough to connect and send the request.
-			$this->select();
+			// Attempt to make the connection and send data,
+			// might not work if the connect takes too long.
+			$this->poll();
 		}
 
 		return TRUE;
